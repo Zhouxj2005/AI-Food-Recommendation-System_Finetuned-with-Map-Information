@@ -47,10 +47,8 @@ class RestaurantDataEvaluator:
 
             return {
                 **sample,
-                "training_data_quality_score": evaluation.get("training_data_quality_score"),
-                "training_data_quality_reason": evaluation.get("training_data_quality_reason"),
-                "original_model_performance_score": evaluation.get("original_model_performance_score"),
-                "original_model_performance_reason": evaluation.get("original_model_performance_reason"),
+                "evaluate_score": evaluation.get("evaluate_score"),
+                "evaluate_reason": evaluation.get("evaluate_reason"),
             }
 
         except Exception as e:
@@ -58,10 +56,8 @@ class RestaurantDataEvaluator:
             # 返回默认值
             return {
                 **sample,
-                "training_data_quality_score": None,
-                "training_data_quality_reason": f"评估失败: {str(e)}",
-                "original_model_performance_score": None,
-                "original_model_performance_reason": f"评估失败: {str(e)}",
+                "evaluate_score": None,
+                "evaluate_reason": f"评估失败: {str(e)}",
             }
 
     def evaluate_batch(self, samples: List[Dict[str, Any]],
@@ -99,42 +95,31 @@ class RestaurantDataEvaluator:
     def _build_evaluation_prompt(self, sample: Dict[str, Any]) -> str:
         """构建评估提示"""
 
-        prompt = f"""请你根据以下标准，对以下餐厅推荐数据样本进行训练数据质量和原始模型表现打分（均为10分制）：
+        prompt = f"""请你根据以下标准，对以下餐厅推荐数据样本进行综合评估打分（10分制）：
 
 **样本信息：**
 Instruction: {sample.get('Instruction', '')}
 Question: {sample.get('Question', '')}
 Answer: {sample.get('Answer', '')}
 
-**训练数据质量评分标准（10分制）：**
-1. 准确性（2分）：餐厅信息是否真实、地址、评分、人均价格是否准确。
-2. 一致性（2分）：相同或相似问题下的回答是否逻辑一致、信息不冲突。
-3. 多样性（2分）：是否覆盖多种偏好、预算、位置、菜系组合。
-4. 格式规范性（2分）：Instruction、Question、Answer 结构是否清晰、完整。
-5. 实用性（2分）：推荐是否合理、是否真正符合用户偏好与预算。
+**综合评估标准（10分制）：**
+1. 数据准确性（2分）：餐厅信息是否真实、地址、评分、人均价格是否准确
+2. 逻辑一致性（2分）：问答内容是否逻辑清晰、自洽、无冲突
+3. 推荐合理性（2分）：推荐是否符合用户偏好、预算、位置等所有条件
+4. 信息完整性（2分）：是否提供关键信息（名称、地址、评分、人均、距离等）
+5. 整体质量（2分）：数据多样性、实用性、格式规范性的综合评价
 
-**原始模型表现评分标准（10分制）：**
-1. 理解能力（2分）：是否准确理解用户位置、预算、偏好。
-2. 推荐合理性（2分）：推荐餐厅是否符合用户所有条件。
-3. 信息完整性（2分）：是否提供名称、地址、评分、人均、距离等关键信息。
-4. 逻辑清晰性（2分）：回答结构是否清晰、推荐理由是否充分。
-5. 多样性（2分）：是否避免重复推荐，是否覆盖不同选择。
-
-**打分要求：**
-1. 训练数据质量评分（1-10分）：
-   - 你的评分：[请在此处给出整数评分]
-   - 简要理由：[请在此处简要说明理由，不超过50字]
-
-2. 原始模型表现评分（1-10分）：
-   - 你的评分：[请在此处给出整数评分]
-   - 简要理由：[请在此处简要说明理由，不超过50字]
+**评分指南：**
+- 9-10分：优秀，信息准确完整，逻辑清晰，推荐合理
+- 7-8分：良好，大部分信息准确，推荐基本合理
+- 5-6分：一般，有一定缺陷但基本可用
+- 3-4分：较差，存在明显问题
+- 1-2分：很差，信息严重错误或推荐不合理
 
 请严格按照以下JSON格式返回结果，不要返回任何其他文字：
 {{
-  "training_data_quality_score": 分数,
-  "training_data_quality_reason": "理由",
-  "original_model_performance_score": 分数,
-  "original_model_performance_reason": "理由"
+  "evaluate_score": 整数分数,
+  "evaluate_reason": "简要理由（不超过50字）"
 }}"""
 
         return prompt
@@ -171,10 +156,8 @@ Answer: {sample.get('Answer', '')}
 
                 # 验证必需的字段
                 required_fields = [
-                    "training_data_quality_score",
-                    "training_data_quality_reason",
-                    "original_model_performance_score",
-                    "original_model_performance_reason"
+                    "evaluate_score",
+                    "evaluate_reason"
                 ]
 
                 for field in required_fields:
@@ -193,63 +176,39 @@ Answer: {sample.get('Answer', '')}
         """解析文本格式的响应（备选方案）"""
         import re
         result = {
-            "training_data_quality_score": None,
-            "training_data_quality_reason": "无法解析响应格式",
-            "original_model_performance_score": None,
-            "original_model_performance_reason": "无法解析响应格式"
+            "evaluate_score": None,
+            "evaluate_reason": "无法解析响应格式"
         }
 
-        # 尝试查找训练数据质量评分
-        tdq_patterns = [
-            r'训练数据质量评分[：:]\s*(\d+)',
-            r'training_data_quality_score[：:]\s*(\d+)',
-            r'数据质量评分[：:]\s*(\d+)'
+        # 尝试查找评估评分
+        score_patterns = [
+            r'evaluate_score[：:]\s*(\d+)',
+            r'评估评分[：:]\s*(\d+)',
+            r'综合评分[：:]\s*(\d+)'
         ]
 
-        for pattern in tdq_patterns:
+        for pattern in score_patterns:
             match = re.search(pattern, response, re.IGNORECASE)
             if match:
-                result["training_data_quality_score"] = int(match.group(1))
-                break
-
-        # 尝试查找原始模型表现评分
-        omp_patterns = [
-            r'原始模型表现评分[：:]\s*(\d+)',
-            r'original_model_performance_score[：:]\s*(\d+)',
-            r'模型表现评分[：:]\s*(\d+)'
-        ]
-
-        for pattern in omp_patterns:
-            match = re.search(pattern, response, re.IGNORECASE)
-            if match:
-                result["original_model_performance_score"] = int(match.group(1))
+                result["evaluate_score"] = int(match.group(1))
                 break
 
         return result
 
     def analyze_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """分析评估结果，生成统计信息"""
-        tdq_scores = [r.get("training_data_quality_score") for r in results if
-                      r.get("training_data_quality_score") is not None]
-        omp_scores = [r.get("original_model_performance_score") for r in results if
-                      r.get("original_model_performance_score") is not None]
+        scores = [r.get("evaluate_score") for r in results if
+                  r.get("evaluate_score") is not None]
 
         # 计算统计数据
         analysis = {
             "total_samples": len(results),
-            "training_data_quality": {
-                "average_score": sum(tdq_scores) / len(tdq_scores) if tdq_scores else 0,
-                "min_score": min(tdq_scores) if tdq_scores else 0,
-                "max_score": max(tdq_scores) if tdq_scores else 0,
-                "score_distribution": self._calculate_score_distribution(tdq_scores)
-            },
-            "original_model_performance": {
-                "average_score": sum(omp_scores) / len(omp_scores) if omp_scores else 0,
-                "min_score": min(omp_scores) if omp_scores else 0,
-                "max_score": max(omp_scores) if omp_scores else 0,
-                "score_distribution": self._calculate_score_distribution(omp_scores)
-            },
-            "correlation": self._calculate_correlation(tdq_scores, omp_scores)
+            "evaluate_score": {
+                "average_score": sum(scores) / len(scores) if scores else 0,
+                "min_score": min(scores) if scores else 0,
+                "max_score": max(scores) if scores else 0,
+                "score_distribution": self._calculate_score_distribution(scores)
+            }
         }
 
         return analysis
@@ -314,7 +273,7 @@ def generate_report(analysis: Dict[str, Any], results: List[Dict[str, Any]]) -> 
             result_lines.append(f"{score:2d}分: {count:3d}个 ({percentage:5.1f}%) {bar}")
         return "\n".join(result_lines)
 
-    report = f"""餐厅推荐数据集质量评估报告 (阿里云百炼平台)
+    report = f"""餐厅推荐数据集综合评估报告 (阿里云百炼平台)
 ============================================
 评估时间: {time.strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -322,27 +281,14 @@ def generate_report(analysis: Dict[str, Any], results: List[Dict[str, Any]]) -> 
 --------
 评估样本总数: {analysis['total_samples']}
 
-训练数据质量评估结果
+综合评估结果
 ------------------
-平均分: {analysis['training_data_quality']['average_score']:.2f}
-最低分: {analysis['training_data_quality']['min_score']}
-最高分: {analysis['training_data_quality']['max_score']}
+平均分: {analysis['evaluate_score']['average_score']:.2f}
+最低分: {analysis['evaluate_score']['min_score']}
+最高分: {analysis['evaluate_score']['max_score']}
 
 评分分布:
-{format_distribution(analysis['training_data_quality']['score_distribution'])}
-
-原始模型表现评估结果
-------------------
-平均分: {analysis['original_model_performance']['average_score']:.2f}
-最低分: {analysis['original_model_performance']['min_score']}
-最高分: {analysis['original_model_performance']['max_score']}
-
-评分分布:
-{format_distribution(analysis['original_model_performance']['score_distribution'])}
-
-相关性分析
-----------
-训练数据质量与模型表现的相关性: {analysis['correlation']:.3f}
+{format_distribution(analysis['evaluate_score']['score_distribution'])}
 """
     return report
 
@@ -358,7 +304,7 @@ def main():
     MODEL_NAME = "qwen-max"
 
     # 3. 文件路径
-    DATA_FILE = "prediction_result.json"  # 输入数据文件
+    DATA_FILE = "data.json"  # 输入数据文件
     RESULTS_FILE = "evaluation_results.json"  # 详细评估结果
     ANALYSIS_FILE = "evaluation_analysis.json"  # 统计分析结果
     REPORT_FILE = "evaluation_report.txt"  # 可读报告
@@ -420,17 +366,7 @@ def main():
     # 8. 打印摘要到屏幕
     print("\n" + "=" * 60)
     print("评估完成！摘要如下：")
-    print(f"训练数据质量平均分: {analysis['training_data_quality']['average_score']:.2f}")
-    print(f"原始模型表现平均分: {analysis['original_model_performance']['average_score']:.2f}")
-    if analysis['correlation'] > 0.5:
-        corr_msg = "强正相关"
-    elif analysis['correlation'] > 0.3:
-        corr_msg = "中等正相关"
-    elif analysis['correlation'] > 0:
-        corr_msg = "弱正相关"
-    else:
-        corr_msg = "无显著相关"
-    print(f"两者相关性: {analysis['correlation']:.3f} ({corr_msg})")
+    print(f"综合评估平均分: {analysis['evaluate_score']['average_score']:.2f}")
     print("=" * 60)
     print(f"\n详细结果已保存至：")
     print(f"  - 详细评分: {RESULTS_FILE}")
@@ -442,10 +378,7 @@ def main():
     for i, result in enumerate(results[:3]):
         print(f"\n样本 {i + 1}:")
         print(f"  问题: {result['Question'][:60]}...")
-        print(
-            f"  训练数据质量: {result['training_data_quality_score']}分 - {result['training_data_quality_reason'][:30]}...")
-        print(
-            f"  原始模型表现: {result['original_model_performance_score']}分 - {result['original_model_performance_reason'][:30]}...")
+        print(f"  综合评分: {result['evaluate_score']}分 - {result['evaluate_reason'][:50]}...")
 
 
 if __name__ == "__main__":

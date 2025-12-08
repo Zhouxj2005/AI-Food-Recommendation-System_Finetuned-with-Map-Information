@@ -19,7 +19,7 @@ with open("data_raw.json", "r", encoding="utf-8") as f:
         else:
             merged.append(items)
 
-with open("merged2.json", "w", encoding="utf-8") as f:
+with open("data.json", "w", encoding="utf-8") as f:
     f.write("[\n")
     for i, obj in enumerate(merged):
         f.write("    ")
@@ -29,4 +29,4 @@ with open("merged2.json", "w", encoding="utf-8") as f:
         f.write(json_line + "\n")
     f.write("]\n")
 
-print(f"写入完成，共 {len(merged)} 条，输出文件：merged.json")
+print(f"写入完成，共 {len(merged)} 条，输出文件：data.json")
