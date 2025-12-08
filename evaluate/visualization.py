@@ -32,6 +32,22 @@ dataset_counts, dataset_percentages = get_distribution("./dataset_evaluation/eva
 raw_counts, raw_percentages = get_distribution("./raw_mode_evaluation/evaluation_results.json")
 finetuned_counts, finetuned_percentages = get_distribution("./fine-tuned_model_evaluation/evaluation_results.json")
 
+mean_dataset_score = 0
+for i in range(11):
+    mean_dataset_score += dataset_counts[i] * i
+mean_dataset_score /= np.sum(dataset_counts) if np.sum(dataset_counts) > 0 else 0
+
+mean_raw_score = 0
+for i in range(11):
+    mean_raw_score += raw_counts[i] * i
+mean_raw_score /= np.sum(raw_counts) if np.sum(raw_counts) > 0 else 0
+
+mean_finetuned_score = 0
+for i in range(11):
+    mean_finetuned_score += finetuned_counts[i] * i
+mean_finetuned_score /= np.sum(finetuned_counts) if np.sum(finetuned_counts) > 0 else 0
+
+print(f"训练数据平均分: {mean_dataset_score:.2f}, 原始模型平均分: {mean_raw_score:.2f}, 微调模型平均分: {mean_finetuned_score:.2f}")
 # ================= 绘图函数封装 =================
 
 def draw_single_bar_chart(data, title, color_hex):
