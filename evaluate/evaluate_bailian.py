@@ -85,7 +85,7 @@ class RestaurantDataEvaluator:
             result = self.evaluate_sample(sample)
             results.append(result)
 
-            if i > 50:
+            if i > 300:
                 break
 
         print("批量评估完成!")
@@ -289,16 +289,16 @@ def main():
 
     # ========== 配置参数 ==========
     # 1. 你的API密钥
-    BAILIAN_API_KEY = "sk-79030d2fb6124a008441f6d9e3d88a9f"
+    BAILIAN_API_KEY = "sk-46840bdaeb31444a80dce5444af61633"
 
     # 2. 选择模型：qwen-max, qwen-plus, qwen-turbo 等
-    MODEL_NAME = "qwen-max"
+    MODEL_NAME = "qwen-max-latest"
 
     # 3. 文件路径
-    DATA_FILE = "./dataset_evaluation/data.json"  # 输入数据文件
-    RESULTS_FILE = "./dataset_evaluation/evaluation_results.json"  # 详细评估结果
-    ANALYSIS_FILE = "./dataset_evaluation/evaluation_analysis.json"  # 统计分析结果
-    REPORT_FILE = "./dataset_evaluation/evaluation_report.txt"  # 可读报告
+    DATA_FILE = "./raw_mode_evaluation/raw_model_dataset.json"  # 输入数据文件
+    RESULTS_FILE = "./raw_mode_evaluation/evaluation_results.json"  # 详细评估结果
+    ANALYSIS_FILE = "./raw_mode_evaluation/evaluation_analysis.json"  # 统计分析结果
+    REPORT_FILE = "./raw_mode_evaluation/evaluation_report.txt"  # 可读报告
 
     # 4. 评估控制
     SAMPLE_LIMIT = None  # 为测试先评估前N个样本，设为None则评估全部

@@ -15,84 +15,92 @@ def get_distribution(file_path):
     try:
         items = json.load(open(file_path, "r", encoding="utf-8"))
         for item in items:
-            score = item.get("composite_score", 0)
+            score = item.get("evaluate_score",0)
+            if score == 0:
+                score = item.get("composite_score", 0)
             if 1 <= score <= 10:
                 counts[score - 1] += 1
     except FileNotFoundError:
         print(f"警告: 未找到文件 {file_path}，将使用全0数据代替以防止报错。")
-    
     total = counts.sum()
+    print("加载文件:", file_path, "评分分布:", counts, "总数:", total)
     percentages = np.round((counts / total) * 100, 1) if total > 0 else np.zeros(11)
     return counts, percentages
 
 # 加载数据 (切记：绘图时我们需要把数组切片 [:10] 以匹配 1-10 分)
 dataset_counts, dataset_percentages = get_distribution("./dataset_evaluation/evaluation_results.json")
+# print("训练数据质量分布：", dataset_counts)
+
 raw_counts, raw_percentages = get_distribution("./raw_mode_evaluation/evaluation_results.json")
 finetuned_counts, finetuned_percentages = get_distribution("./fine-tuned_model_evaluation/evaluation_results.json")
 
-# ================= 绘图部分 (新增代码) =================
+# ================= 绘图函数封装 =================
 
-# 创建画布，2行2列，figsize控制整体大小
-fig = plt.figure(figsize=(18, 14))
-fig.suptitle('模型评分分布对比分析', fontsize=20, y=0.96)
-
-# 定义颜色，方便统一管理
-colors = ['#1f77b4', '#ff7f0e', '#2ca02c'] # 蓝、橙、绿
-labels = ['训练数据质量', '原始模型表现', '微调模型表现']
-data_list = [dataset_percentages[:10], raw_percentages[:10], finetuned_percentages[:10]]
-
-# --- 绘制前三张：柱状图 ---
-# 使用循环来绘制前三个子图
-for i in range(3):
-    ax = fig.add_subplot(2, 2, i + 1) # 位置：1, 2, 3
-    data = data_list[i]
+def draw_single_bar_chart(data, title, color_hex):
+    """
+    绘制单张柱状图的辅助函数
+    """
+    plt.figure(figsize=(8, 6))  # 每次调用都创建一个新的独立画布
     
-    # 画柱状图
-    bars = ax.bar(scores, data, color=colors[i], alpha=0.7, width=0.6)
+    # 截取前10个数据对应1-10分
+    valid_data = data[:10]
     
-    # 设置标题和标签
-    ax.set_title(f'{labels[i]}分布', fontsize=14)
-    ax.set_xlabel('评分 (1-10)', fontsize=12)
-    ax.set_ylabel('占比 (%)', fontsize=12)
-    ax.set_xticks(scores) # 强制显示1-10的所有刻度
-    ax.set_ylim(0, 100) # 固定Y轴范围0-100，方便直观对比
-    ax.grid(axis='y', linestyle='--', alpha=0.5)
-
-    # 在柱子上显示具体数值
+    bars = plt.bar(scores, valid_data, color=color_hex, alpha=0.7, width=0.6)
+    
+    plt.title(title, fontsize=16)
+    plt.xlabel('评分 (1-10)', fontsize=12)
+    plt.ylabel('占比 (%)', fontsize=12)
+    plt.xticks(scores)
+    plt.ylim(0, 100) # 统一Y轴高度方便对比
+    plt.grid(axis='y', linestyle='--', alpha=0.5)
+    
+    # 标数值
     for bar in bars:
         height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2, height + 1, 
-                f'{height}%', ha='center', va='bottom', fontsize=10)
+        plt.text(bar.get_x() + bar.get_width() / 2, height + 1, 
+                 f'{height}%', ha='center', va='bottom', fontsize=10)
+    
+    plt.tight_layout()
+    plt.show() # 显示当前窗口
 
-# --- 绘制第四张：雷达图 (对比图) ---
-# 第4个位置使用极坐标 projection='polar'
-ax_radar = fig.add_subplot(2, 2, 4, polar=True)
+# ================= 开始绘图 =================
 
-# 雷达图由于是闭环，需要将数据的第一个点追加到最后
+# 1. 训练数据分布图
+draw_single_bar_chart(dataset_percentages, '训练数据质量分布', '#1f77b4') # 蓝色
+
+# 2. 原始模型分布图
+draw_single_bar_chart(raw_percentages, '原始模型表现分布', '#ff7f0e') # 橙色
+
+# 3. 微调模型分布图
+draw_single_bar_chart(finetuned_percentages, '微调模型表现分布', '#2ca02c') # 绿色
+
+# 4. 三者对比雷达图
+plt.figure(figsize=(8, 8)) # 创建第4个独立画布
+ax = plt.subplot(111, polar=True) # 建立极坐标系
+
+# 数据准备
+labels = ['训练数据', '原始模型', '微调模型']
+data_list = [dataset_percentages[:10], raw_percentages[:10], finetuned_percentages[:10]]
+colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
+
+# 角度设置 (10个分数对应10个角度)
 angles = np.linspace(0, 2 * np.pi, len(scores), endpoint=False)
-angles = np.concatenate((angles, [angles[0]])) # 闭环角度
+# 闭环操作：把角度数组的第一个值加到最后
+angles = np.concatenate((angles, [angles[0]]))
 
-# 画三个分布的线条
 for i, data in enumerate(data_list):
-    # 数据也要闭环，把第一个数据加到最后
+    # 数据闭环：把数据的第一个值加到最后
     data_closed = np.concatenate((data, [data[0]]))
     
-    ax_radar.plot(angles, data_closed, 'o-', linewidth=2, label=labels[i], color=colors[i])
-    ax_radar.fill(angles, data_closed, alpha=0.15, color=colors[i]) # 填充颜色
+    ax.plot(angles, data_closed, 'o-', linewidth=2, label=labels[i], color=colors[i])
+    ax.fill(angles, data_closed, alpha=0.15, color=colors[i])
 
-# 设置雷达图的标签 (显示在圆周上)
-ax_radar.set_thetagrids(angles[:-1] * 180 / np.pi, scores)
-ax_radar.set_title('三种分布雷达图对比', fontsize=14, y=1.08)
-ax_radar.set_ylim(0, 100) # 这里的上限可以根据实际数据的最大值调整，比如 max(所有数据)+10
-ax_radar.grid(True)
+# 设置雷达图属性
+ax.set_thetagrids(angles[:-1] * 180 / np.pi, scores) # 设置刻度标签为 1-10
+ax.set_title('三种分布雷达图对比（百分比）', fontsize=16, y=1.05)
+ax.set_ylim(0, 50) # 范围0-100
+ax.grid(True)
+plt.legend(loc='best') # 图例
 
-# 添加图例
-plt.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
-
-# 调整布局防止重叠
 plt.tight_layout()
-plt.subplots_adjust(top=0.90) # 给总标题留出空间
-
-# 保存图片或显示
-# plt.savefig('score_distribution_analysis.png', dpi=300) 
 plt.show()
