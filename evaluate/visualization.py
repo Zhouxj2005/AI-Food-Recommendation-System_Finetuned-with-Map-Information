@@ -1,125 +1,98 @@
 import matplotlib.pyplot as plt
 import numpy as np
-plt.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['axes.unicode_minus'] = False
-# 数据准备
-scores = list(range(1, 11))
+import json
 
-# 训练数据质量分布
-train_counts = [0, 0, 0, 29, 33, 156, 133, 541, 198, 0]
-train_percentages = [0.0, 0.0, 0.0, 2.7, 3.0, 14.3, 12.2, 49.6, 18.2, 0.0]
+# 设置中文字体和负号显示
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
-# 原始模型表现分布
-model_counts = [0, 0, 29, 32, 153, 134, 505, 192, 45, 0]
-model_percentages = [0.0, 0.0, 2.7, 2.9, 14.0, 12.3, 46.3, 17.6, 4.1, 0.0]
+# ================= 数据准备部分 (保持你的代码不变) =================
+scores = list(range(1, 11))  # 评分范围：1-10分
 
-# 创建图表
-fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
-fig.suptitle('餐厅推荐数据集质量评估报告可视化分析', fontsize=16, fontweight='bold')
+def get_distribution(file_path):
+    counts = np.zeros(11, dtype=int)
+    # 实际运行时请确保文件路径正确，这里假设文件存在
+    try:
+        items = json.load(open(file_path, "r", encoding="utf-8"))
+        for item in items:
+            score = item.get("composite_score", 0)
+            if 1 <= score <= 10:
+                counts[score - 1] += 1
+    except FileNotFoundError:
+        print(f"警告: 未找到文件 {file_path}，将使用全0数据代替以防止报错。")
+    
+    total = counts.sum()
+    percentages = np.round((counts / total) * 100, 1) if total > 0 else np.zeros(11)
+    return counts, percentages
 
-# 1. 训练数据质量评分分布 (柱状图)
-bars1 = ax1.bar(scores, train_counts, color='skyblue', edgecolor='black', alpha=0.7)
-ax1.set_title('训练数据质量评分分布', fontsize=14, fontweight='bold')
-ax1.set_xlabel('评分', fontsize=12)
-ax1.set_ylabel('样本数量', fontsize=12)
-ax1.set_xticks(scores)
-ax1.grid(axis='y', alpha=0.3)
+# 加载数据 (切记：绘图时我们需要把数组切片 [:10] 以匹配 1-10 分)
+dataset_counts, dataset_percentages = get_distribution("./dataset_evaluation/evaluation_results.json")
+raw_counts, raw_percentages = get_distribution("./raw_mode_evaluation/evaluation_results.json")
+finetuned_counts, finetuned_percentages = get_distribution("./fine-tuned_model_evaluation/evaluation_results.json")
 
-# 在柱子上添加百分比标签
-for i, (bar, perc) in enumerate(zip(bars1, train_percentages)):
-    if perc > 0:
+# ================= 绘图部分 (新增代码) =================
+
+# 创建画布，2行2列，figsize控制整体大小
+fig = plt.figure(figsize=(18, 14))
+fig.suptitle('模型评分分布对比分析', fontsize=20, y=0.96)
+
+# 定义颜色，方便统一管理
+colors = ['#1f77b4', '#ff7f0e', '#2ca02c'] # 蓝、橙、绿
+labels = ['训练数据质量', '原始模型表现', '微调模型表现']
+data_list = [dataset_percentages[:10], raw_percentages[:10], finetuned_percentages[:10]]
+
+# --- 绘制前三张：柱状图 ---
+# 使用循环来绘制前三个子图
+for i in range(3):
+    ax = fig.add_subplot(2, 2, i + 1) # 位置：1, 2, 3
+    data = data_list[i]
+    
+    # 画柱状图
+    bars = ax.bar(scores, data, color=colors[i], alpha=0.7, width=0.6)
+    
+    # 设置标题和标签
+    ax.set_title(f'{labels[i]}分布', fontsize=14)
+    ax.set_xlabel('评分 (1-10)', fontsize=12)
+    ax.set_ylabel('占比 (%)', fontsize=12)
+    ax.set_xticks(scores) # 强制显示1-10的所有刻度
+    ax.set_ylim(0, 100) # 固定Y轴范围0-100，方便直观对比
+    ax.grid(axis='y', linestyle='--', alpha=0.5)
+
+    # 在柱子上显示具体数值
+    for bar in bars:
         height = bar.get_height()
-        ax1.text(bar.get_x() + bar.get_width()/2., height + 5,
-                f'{perc}%', ha='center', va='bottom', fontsize=9)
+        ax.text(bar.get_x() + bar.get_width() / 2, height + 1, 
+                f'{height}%', ha='center', va='bottom', fontsize=10)
 
-# 2. 原始模型表现评分分布 (柱状图)
-bars2 = ax2.bar(scores, model_counts, color='lightcoral', edgecolor='black', alpha=0.7)
-ax2.set_title('原始模型表现评分分布', fontsize=14, fontweight='bold')
-ax2.set_xlabel('评分', fontsize=12)
-ax2.set_ylabel('样本数量', fontsize=12)
-ax2.set_xticks(scores)
-ax2.grid(axis='y', alpha=0.3)
+# --- 绘制第四张：雷达图 (对比图) ---
+# 第4个位置使用极坐标 projection='polar'
+ax_radar = fig.add_subplot(2, 2, 4, polar=True)
 
-# 在柱子上添加百分比标签
-for i, (bar, perc) in enumerate(zip(bars2, model_percentages)):
-    if perc > 0:
-        height = bar.get_height()
-        ax2.text(bar.get_x() + bar.get_width()/2., height + 5,
-                f'{perc}%', ha='center', va='bottom', fontsize=9)
+# 雷达图由于是闭环，需要将数据的第一个点追加到最后
+angles = np.linspace(0, 2 * np.pi, len(scores), endpoint=False)
+angles = np.concatenate((angles, [angles[0]])) # 闭环角度
 
-# 3. 对比雷达图
-ax3 = plt.subplot(2, 2, 3, projection='polar')
+# 画三个分布的线条
+for i, data in enumerate(data_list):
+    # 数据也要闭环，把第一个数据加到最后
+    data_closed = np.concatenate((data, [data[0]]))
+    
+    ax_radar.plot(angles, data_closed, 'o-', linewidth=2, label=labels[i], color=colors[i])
+    ax_radar.fill(angles, data_closed, alpha=0.15, color=colors[i]) # 填充颜色
 
-# 只选择有数据的分数（4-9分）
-angles = np.linspace(0, 2*np.pi, 6, endpoint=False)
-train_radar = train_percentages[3:9]
-model_radar = model_percentages[3:9]
+# 设置雷达图的标签 (显示在圆周上)
+ax_radar.set_thetagrids(angles[:-1] * 180 / np.pi, scores)
+ax_radar.set_title('三种分布雷达图对比', fontsize=14, y=1.08)
+ax_radar.set_ylim(0, 100) # 这里的上限可以根据实际数据的最大值调整，比如 max(所有数据)+10
+ax_radar.grid(True)
 
-# 闭合数据
-train_radar = np.append(train_radar, train_radar[0])
-model_radar = np.append(model_radar, model_radar[0])
-angles = np.append(angles, angles[0])
+# 添加图例
+plt.legend(loc='upper right', bbox_to_anchor=(1.3, 1.1))
 
-ax3.plot(angles, train_radar, 'o-', linewidth=2, label='训练数据质量', color='blue')
-ax3.fill(angles, train_radar, alpha=0.25, color='blue')
-ax3.plot(angles, model_radar, 'o-', linewidth=2, label='模型表现', color='red')
-ax3.fill(angles, model_radar, alpha=0.25, color='red')
-
-ax3.set_title('训练数据与模型表现对比 (4-9分)', fontsize=14, fontweight='bold', pad=20)
-ax3.set_xticks(angles[:-1])
-ax3.set_xticklabels(['4分', '5分', '6分', '7分', '8分', '9分'])
-ax3.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
-ax3.grid(True)
-
-# 4. 关键指标展示
-ax4.axis('off')
-metrics_text = f"""
-关键指标汇总
-
-数据集信息:
-• 样本总数: 1090
-• 评估时间: 2025-12-07 20:33:31
-
-训练数据质量:
-• 平均分: 7.58
-• 最低分: 4
-• 最高分: 9
-• 主要分布: 8分 (49.6%)
-
-原始模型表现:
-• 平均分: 6.66
-• 最低分: 3
-• 最高分: 9
-• 主要分布: 7分 (46.3%)
-
-相关性分析:
-• 训练数据与模型表现相关性: 0.950
-
-结论:
-• 训练数据质量较高 (平均7.58分)
-• 模型表现中等 (平均6.66分)
-• 两者高度相关 (0.950)
-"""
-
-ax4.text(0.1, 0.5, metrics_text, fontsize=12,
-         verticalalignment='center',
-         bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.5))
-
-# 调整布局
+# 调整布局防止重叠
 plt.tight_layout()
-plt.subplots_adjust(top=0.92)
+plt.subplots_adjust(top=0.90) # 给总标题留出空间
 
-# 保存图表
-plt.savefig('evaluation_visualization.png', dpi=300, bbox_inches='tight')
+# 保存图片或显示
+# plt.savefig('score_distribution_analysis.png', dpi=300) 
 plt.show()
-
-# 打印数据统计
-print("=" * 60)
-print("数据统计摘要")
-print("=" * 60)
-print(f"训练数据质量平均分: {7.58}")
-print(f"原始模型表现平均分: {6.66}")
-print(f"两者相关性: {0.950}")
-print(f"训练数据8-9分占比: {(541+198)/1090*100:.1f}%")
-print(f"模型表现7-8分占比: {(505+192)/1090*100:.1f}%")
-print("=" * 60)
