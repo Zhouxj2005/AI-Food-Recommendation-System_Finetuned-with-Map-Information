@@ -29,8 +29,6 @@ def get_distribution(file_path):
 
 # 加载数据 (切记：绘图时我们需要把数组切片 [:10] 以匹配 1-10 分)
 dataset_counts, dataset_percentages = get_distribution("./dataset_evaluation/evaluation_results.json")
-# print("训练数据质量分布：", dataset_counts)
-
 raw_counts, raw_percentages = get_distribution("./raw_mode_evaluation/evaluation_results.json")
 finetuned_counts, finetuned_percentages = get_distribution("./fine-tuned_model_evaluation/evaluation_results.json")
 

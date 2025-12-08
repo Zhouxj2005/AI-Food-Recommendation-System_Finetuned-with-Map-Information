@@ -1,19 +1,19 @@
 {
-  "total_samples": 52,
-  "evaluated_samples": 52,
+  "total_samples": 302,
+  "evaluated_samples": 302,
   "composite_scores": {
-    "average_score": 5.5,
-    "min_score": 4,
+    "average_score": 5.321192052980132,
+    "min_score": 2,
     "max_score": 8,
     "score_distribution": {
       "1": 0,
-      "2": 0,
-      "3": 0,
-      "4": 12,
-      "5": 9,
-      "6": 25,
-      "7": 5,
-      "8": 1,
+      "2": 2,
+      "3": 5,
+      "4": 103,
+      "5": 13,
+      "6": 147,
+      "7": 27,
+      "8": 5,
       "9": 0,
       "10": 0
     }
