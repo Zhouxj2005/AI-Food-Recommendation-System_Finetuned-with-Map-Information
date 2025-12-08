@@ -3,7 +3,7 @@ import time
 import os
 import re
 from typing import List, Dict, Any, Optional
-from openai import OpenAI  # 使用 openai 库的客户端，但我们将指向阿里云百炼
+from openai import OpenAI
 
 
 class RestaurantDataEvaluator:
@@ -21,8 +21,8 @@ class RestaurantDataEvaluator:
 
         # 初始化OpenAI客户端，将base_url指向阿里云百炼的兼容端点
         self.client = OpenAI(
-            api_key=api_key,  # 使用你提供的密钥
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"  # 百炼OpenAI兼容接口地址[citation:9]
+            api_key=api_key,
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
         )
 
     def evaluate_sample(self, sample: Dict[str, Any]) -> Dict[str, Any]:
@@ -33,22 +33,22 @@ class RestaurantDataEvaluator:
             sample: 包含Instruction, Question, Answer的数据样本
 
         Returns:
-            包含评分和理由的字典
+            包含综合评分的字典
         """
         # 1. 构建评估提示
         prompt = self._build_evaluation_prompt(sample)
 
         try:
-            # 2. 调用LLM API进行评估[citation:2][citation:5]
+            # 2. 调用LLM API进行评估
             response_content = self._call_llm_api(prompt)
 
-            # 3. 解析LLM的响应，提取评分
+            # 3. 解析LLM的响应，提取综合评分
             evaluation = self._parse_evaluation_response(response_content)
 
             return {
                 **sample,
-                "evaluate_score": evaluation.get("evaluate_score"),
-                "evaluate_reason": evaluation.get("evaluate_reason"),
+                "composite_score": evaluation.get("composite_score"),
+                "composite_score_reason": evaluation.get("composite_score_reason"),
             }
 
         except Exception as e:
@@ -56,15 +56,15 @@ class RestaurantDataEvaluator:
             # 返回默认值
             return {
                 **sample,
-                "evaluate_score": None,
-                "evaluate_reason": f"评估失败: {str(e)}",
+                "composite_score": None,
+                "composite_score_reason": f"评估失败: {str(e)}",
             }
 
     def evaluate_batch(self, samples: List[Dict[str, Any]],
                        batch_size: int = 5,
                        delay: float = 1.0) -> List[Dict[str, Any]]:
         """
-        批量评估数据样本，自动控制请求频率[citation:5]
+        批量评估数据样本，自动控制请求频率
 
         Args:
             samples: 数据样本列表
@@ -85,7 +85,7 @@ class RestaurantDataEvaluator:
             result = self.evaluate_sample(sample)
             results.append(result)
 
-            # 添加延迟以避免API速率限制[citation:1]
+            # 添加延迟以避免API速率限制
             if i < total_samples - 1:
                 time.sleep(delay)
 
@@ -93,41 +93,39 @@ class RestaurantDataEvaluator:
         return results
 
     def _build_evaluation_prompt(self, sample: Dict[str, Any]) -> str:
-        """构建评估提示"""
+        """构建综合评估提示"""
 
-        prompt = f"""请你根据以下标准，对以下餐厅推荐数据样本进行综合评估打分（10分制）：
+        prompt = f"""请你根据以下综合标准，对以下餐厅推荐数据样本进行综合打分（10分制）：
 
 **样本信息：**
 Instruction: {sample.get('Instruction', '')}
 Question: {sample.get('Question', '')}
 Answer: {sample.get('Answer', '')}
 
-**综合评估标准（10分制）：**
-1. 数据准确性（2分）：餐厅信息是否真实、地址、评分、人均价格是否准确
-2. 逻辑一致性（2分）：问答内容是否逻辑清晰、自洽、无冲突
-3. 推荐合理性（2分）：推荐是否符合用户偏好、预算、位置等所有条件
-4. 信息完整性（2分）：是否提供关键信息（名称、地址、评分、人均、距离等）
-5. 整体质量（2分）：数据多样性、实用性、格式规范性的综合评价
+**综合评分标准（10分制）：**
+1. 数据质量与准确性（2分）：Instruction、Question、Answer是否清晰准确，信息是否真实可靠。
+2. 推荐合理性（2分）：推荐餐厅是否完全符合用户的位置、预算、偏好等所有条件。
+3. 信息完整性（2分）：是否提供完整的餐厅信息（名称、地址、评分、人均价格、距离等）。
+4. 多样性与实用性（2分）：是否提供多种选择，推荐是否实际可用，是否覆盖不同需求。
+5. 逻辑清晰性（2分）：回答结构是否清晰，推荐理由是否充分，逻辑是否一致。
 
-**评分指南：**
-- 9-10分：优秀，信息准确完整，逻辑清晰，推荐合理
-- 7-8分：良好，大部分信息准确，推荐基本合理
-- 5-6分：一般，有一定缺陷但基本可用
-- 3-4分：较差，存在明显问题
-- 1-2分：很差，信息严重错误或推荐不合理
+**打分要求：**
+综合评分（1-10分）：
+   - 你的评分：[请在此处给出整数评分]
+   - 简要理由：[请在此处简要说明理由，不超过50字]
 
 请严格按照以下JSON格式返回结果，不要返回任何其他文字：
 {{
-  "evaluate_score": 整数分数,
-  "evaluate_reason": "简要理由（不超过50字）"
+  "composite_score": 分数,
+  "composite_score_reason": "理由"
 }}"""
 
         return prompt
 
     def _call_llm_api(self, prompt: str) -> str:
-        """调用阿里云百炼的LLM API获取响应[citation:2]"""
+        """调用阿里云百炼的LLM API获取响应"""
         try:
-            # 使用OpenAI兼容接口进行调用[citation:9]
+            # 使用OpenAI兼容接口进行调用
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -145,24 +143,25 @@ Answer: {sample.get('Answer', '')}
             raise Exception(f"调用阿里云百炼API失败: {str(e)}。请检查API密钥是否正确、是否有额度、模型名称是否正确。")
 
     def _parse_evaluation_response(self, response: str) -> Dict[str, Any]:
-        """解析LLM的响应，提取评分和理由"""
+        """解析LLM的响应，提取综合评分和理由"""
         try:
             # 尝试从响应中提取JSON
-            import re
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(0)
                 evaluation = json.loads(json_str)
 
                 # 验证必需的字段
-                required_fields = [
-                    "evaluate_score",
-                    "evaluate_reason"
-                ]
+                required_fields = ["composite_score", "composite_score_reason"]
 
                 for field in required_fields:
                     if field not in evaluation:
                         raise ValueError(f"响应中缺少必需的字段: {field}")
+
+                # 确保评分在有效范围内
+                score = evaluation["composite_score"]
+                if not isinstance(score, (int, float)) or score < 1 or score > 10:
+                    raise ValueError(f"评分必须在1-10之间，当前为: {score}")
 
                 return evaluation
             else:
@@ -174,40 +173,51 @@ Answer: {sample.get('Answer', '')}
 
     def _parse_text_response(self, response: str) -> Dict[str, Any]:
         """解析文本格式的响应（备选方案）"""
-        import re
         result = {
-            "evaluate_score": None,
-            "evaluate_reason": "无法解析响应格式"
+            "composite_score": 5,  # 默认中等分数
+            "composite_score_reason": "无法解析响应格式，使用默认评分"
         }
 
-        # 尝试查找评估评分
-        score_patterns = [
-            r'evaluate_score[：:]\s*(\d+)',
-            r'评估评分[：:]\s*(\d+)',
-            r'综合评分[：:]\s*(\d+)'
+        # 尝试查找综合评分
+        patterns = [
+            r'综合评分[：:]\s*(\d+)',
+            r'composite_score[：:]\s*(\d+)',
+            r'评分[：:]\s*(\d+)',
+            r'分数[：:]\s*(\d+)',
+            r'score[：:]\s*(\d+)'
         ]
 
-        for pattern in score_patterns:
+        for pattern in patterns:
             match = re.search(pattern, response, re.IGNORECASE)
             if match:
-                result["evaluate_score"] = int(match.group(1))
-                break
+                try:
+                    score = int(match.group(1))
+                    if 1 <= score <= 10:
+                        result["composite_score"] = score
+                        # 尝试提取理由
+                        reason_match = re.search(r'理由[：:]\s*(.*?)(?=\n|$)', response, re.IGNORECASE)
+                        if reason_match:
+                            result["composite_score_reason"] = reason_match.group(1).strip()
+                    break
+                except ValueError:
+                    continue
 
         return result
 
     def analyze_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """分析评估结果，生成统计信息"""
-        scores = [r.get("evaluate_score") for r in results if
-                  r.get("evaluate_score") is not None]
+        composite_scores = [r.get("composite_score") for r in results
+                          if r.get("composite_score") is not None]
 
         # 计算统计数据
         analysis = {
             "total_samples": len(results),
-            "evaluate_score": {
-                "average_score": sum(scores) / len(scores) if scores else 0,
-                "min_score": min(scores) if scores else 0,
-                "max_score": max(scores) if scores else 0,
-                "score_distribution": self._calculate_score_distribution(scores)
+            "evaluated_samples": len(composite_scores),
+            "composite_scores": {
+                "average_score": sum(composite_scores) / len(composite_scores) if composite_scores else 0,
+                "min_score": min(composite_scores) if composite_scores else 0,
+                "max_score": max(composite_scores) if composite_scores else 0,
+                "score_distribution": self._calculate_score_distribution(composite_scores)
             }
         }
 
@@ -221,28 +231,9 @@ Answer: {sample.get('Answer', '')}
                 distribution[score] += 1
         return distribution
 
-    def _calculate_correlation(self, scores1: List[int], scores2: List[int]) -> float:
-        """计算两个评分序列的相关性"""
-        if len(scores1) != len(scores2) or len(scores1) < 2:
-            return 0.0
-
-        try:
-            import numpy as np
-            return np.corrcoef(scores1, scores2)[0, 1]
-        except:
-            n = len(scores1)
-            mean1 = sum(scores1) / n
-            mean2 = sum(scores2) / n
-
-            numerator = sum((s1 - mean1) * (s2 - mean2) for s1, s2 in zip(scores1, scores2))
-            denominator = (sum((s1 - mean1) ** 2 for s1 in scores1) *
-                           sum((s2 - mean2) ** 2 for s2 in scores2)) ** 0.5
-
-            return numerator / denominator if denominator != 0 else 0.0
-
 
 def load_data(file_path: str) -> List[Dict[str, Any]]:
-    """从JSON文件加载数据[citation:2]"""
+    """从JSON文件加载数据"""
     with open(file_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     return data
@@ -261,7 +252,7 @@ def save_analysis(analysis: Dict[str, Any], file_path: str):
 
 
 def generate_report(analysis: Dict[str, Any], results: List[Dict[str, Any]]) -> str:
-    """生成评估报告"""
+    """生成简化的评估报告"""
 
     def format_distribution(distribution: Dict[int, int]) -> str:
         total = sum(distribution.values())
@@ -273,22 +264,23 @@ def generate_report(analysis: Dict[str, Any], results: List[Dict[str, Any]]) -> 
             result_lines.append(f"{score:2d}分: {count:3d}个 ({percentage:5.1f}%) {bar}")
         return "\n".join(result_lines)
 
-    report = f"""餐厅推荐数据集综合评估报告 (阿里云百炼平台)
+    report = f"""餐厅推荐数据集质量评估报告 (阿里云百炼平台)
 ============================================
 评估时间: {time.strftime('%Y-%m-%d %H:%M:%S')}
 
 基本信息
 --------
 评估样本总数: {analysis['total_samples']}
+有效评估样本: {analysis['evaluated_samples']}
 
-综合评估结果
+综合评分评估结果
 ------------------
-平均分: {analysis['evaluate_score']['average_score']:.2f}
-最低分: {analysis['evaluate_score']['min_score']}
-最高分: {analysis['evaluate_score']['max_score']}
+平均分: {analysis['composite_scores']['average_score']:.2f}
+最低分: {analysis['composite_scores']['min_score']}
+最高分: {analysis['composite_scores']['max_score']}
 
 评分分布:
-{format_distribution(analysis['evaluate_score']['score_distribution'])}
+{format_distribution(analysis['composite_scores']['score_distribution'])}
 """
     return report
 
@@ -297,7 +289,7 @@ def main():
     """主函数：执行完整的评估流程"""
 
     # ========== 配置参数 ==========
-    # 1. 你的API密钥 (已直接填入)
+    # 1. 你的API密钥
     BAILIAN_API_KEY = "sk-79030d2fb6124a008441f6d9e3d88a9f"
 
     # 2. 选择模型：qwen-max, qwen-plus, qwen-turbo 等
@@ -305,17 +297,17 @@ def main():
 
     # 3. 文件路径
     DATA_FILE = "data.json"  # 输入数据文件
-    RESULTS_FILE = "evaluation_results.json"  # 详细评估结果
-    ANALYSIS_FILE = "evaluation_analysis.json"  # 统计分析结果
-    REPORT_FILE = "evaluation_report.txt"  # 可读报告
+    RESULTS_FILE = "composite_evaluation_results.json"  # 详细评估结果
+    ANALYSIS_FILE = "composite_evaluation_analysis.json"  # 统计分析结果
+    REPORT_FILE = "composite_evaluation_report.txt"  # 可读报告
 
     # 4. 评估控制
-    SAMPLE_LIMIT = None  # 为测试先评估前10个样本，设为None则评估全部
+    SAMPLE_LIMIT = None  # 为测试先评估前N个样本，设为None则评估全部
     REQUEST_DELAY = 2.0  # 请求间隔(秒)，避免限流
 
     # ========== 执行评估 ==========
     print("=" * 60)
-    print("餐厅推荐数据集质量评估系统 (阿里云百炼版)")
+    print("餐厅推荐数据集质量评估系统 - 综合评分版")
     print("=" * 60)
 
     # 1. 创建评估器
@@ -366,7 +358,9 @@ def main():
     # 8. 打印摘要到屏幕
     print("\n" + "=" * 60)
     print("评估完成！摘要如下：")
-    print(f"综合评估平均分: {analysis['evaluate_score']['average_score']:.2f}")
+    print(f"综合评分平均分: {analysis['composite_scores']['average_score']:.2f}")
+    print(f"评分范围: {analysis['composite_scores']['min_score']} - {analysis['composite_scores']['max_score']}")
+    print(f"有效评估样本: {analysis['evaluated_samples']}/{analysis['total_samples']}")
     print("=" * 60)
     print(f"\n详细结果已保存至：")
     print(f"  - 详细评分: {RESULTS_FILE}")
@@ -378,7 +372,8 @@ def main():
     for i, result in enumerate(results[:3]):
         print(f"\n样本 {i + 1}:")
         print(f"  问题: {result['Question'][:60]}...")
-        print(f"  综合评分: {result['evaluate_score']}分 - {result['evaluate_reason'][:50]}...")
+        print(f"  综合评分: {result['composite_score']}分")
+        print(f"  理由: {result['composite_score_reason'][:50]}...")
 
 
 if __name__ == "__main__":
