@@ -19,6 +19,7 @@ def get_raw_prediction(question):
     return completion.choices[0].message.content
 
 predictions = []
+# data = []
 if __name__ == "__main__":
     with open("data.json", "r", encoding="utf-8") as f:
         items = json.load(f)
@@ -33,3 +34,20 @@ if __name__ == "__main__":
 
     with open("raw_model_predictions.json", "w", encoding="utf-8") as f:
         json.dump(predictions, f, ensure_ascii=False, indent=4)
+    # with open("data.json", "r", encoding="utf-8") as f:
+    #     items = json.load(f)
+    # for i, item in enumerate(items):
+    #     instruction = item.get("Instruction", "")
+    #     question = item.get("Question", "")
+    #     data.append({
+    #         "Instruction": instruction,
+    #         "Question": question,
+    #     })
+
+    # with open("raw_model_predictions.json", "r", encoding="utf-8") as f:
+    #     items = json.load(f)
+    # for i, item in enumerate(items):
+    #     data[i]["Answer"] = item
+
+    # with open("raw_model_dataset.json", "w", encoding="utf-8") as f:
+    #     json.dump(data, f, ensure_ascii=False, indent=4)
