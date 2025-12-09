@@ -17,31 +17,57 @@
 ## 🏗️ 项目架构
 
 ```
-.
-├── generate_data/          # 数据生成模块
-│   ├── agent/             # Agent智能体
-│   │   └── data_generator_agent.py
-│   ├── tools/             # 工具集
-│   │   ├── geo_location_tool.py      # 地理位置查询
-│   │   ├── restaurant_search_tool.py # 餐厅搜索
-│   │   └── preference_gen_tool.py    # 偏好生成
-│   ├── main.py            # 数据生成主程序
-│   ├── transfer_data.py   # 数据格式转换
-│   ├── data_raw.json      # 原始生成数据
-│   └── data.json          # 格式化后的数据
-├── fine_tune/             # 模型微调模块
-│   ├── prepare_data.py    # 数据预处理
-│   ├── spilit_train_test.py # 数据集划分
-│   ├── train.py           # 模型训练
-│   └── prediction_result.json # 模型预测结果
-├── evaluate/              # 评估模块
-│   ├── evaluate_bailian.py # 基于阿里云百炼的评估
-│   ├── visualization.py    # 可视化脚本
-│   ├── prediction_evaluate_visualization.py # 预测结果可视化
-│   ├── evaluation_results.json    # 详细评估结果
-│   ├── evaluation_analysis.json   # 统计分析
-│   └── evaluation_report.txt      # 评估报告
-└── README.md
+AI-Food-Recommendation-System_Finetuned-with-Map-Information/
+│
+├── 📁 generate_data/                    # 🤖 数据生成模块（Agent驱动）
+│   ├── 📁 agent/
+│   │   └── data_generator_agent.py      # Agent主体，支持Tool-use和ReAct推理
+│   ├── 📁 tools/                        # 工具集合，提供外部服务接口
+│   │   ├── geo_location_tool.py         # 地理位置查询工具（地名→经纬度）
+│   │   ├── restaurant_search_tool.py    # 餐厅搜索工具（高德Map API）
+│   │   └── preference_gen_tool.py       # 用户偏好生成工具（菜系、预算、距离）
+│   ├── main.py                          # 数据生成主程序（控制Agent执行流）
+│   ├── transfer_data.py                 # 数据格式转换脚本
+│   ├── data_raw.json                    # 原始生成数据（1090条样本）
+│   └── data.json                        # 格式化后的训练数据
+│
+├── 📁 fine_tune/                        # 🎯 模型微调模块（知识蒸馏）
+│   ├── prepare_data.py                  # 数据预处理（JSON→模型格式）
+│   ├── spilit_train_test.py             # 数据集划分脚本（8:1分割）
+│   ├── train.py                         # 模型训练主程序（Qwen3-0.6B）
+│   └── prediction_result.json           # 模型预测结果（1090条）
+│
+├── 📁 evaluate/                         # 📊 评估分析模块（LLM-as-a-Judge）
+│   ├── evaluate_bailian.py              # 阿里云百炼评估脚本（综合评分）
+│   ├── get_raw_prediction.py            # 原始模型预测脚本
+│   ├── visualization.py                 # 可视化脚本（4个子图表）
+│   ├── evaluation_visualization.png     # 综合评估可视化（最新）
+│   │
+│   ├── 📁 dataset_evaluation/           # 训练数据质量评估结果
+│   │   ├── data.json                    # 训练数据集
+│   │   ├── evaluation_results.json      # 详细评估结果
+│   │   ├── evaluation_analysis.json     # 统计分析（平均分、分布等）
+│   │   └── evaluation_report.txt        # 可读报告
+│   │
+│   ├── 📁 raw_mode_evaluation/          # 原始模型表现评估结果
+│   │   ├── raw_model_dataset.json       # 原始模型输入数据
+│   │   ├── raw_model_predictions.json   # 原始模型预测
+│   │   ├── evaluation_results.json      # 详细评估结果
+│   │   ├── evaluation_analysis.json     # 统计分析
+│   │   └── evaluation_report.txt        # 可读报告
+│   │
+│   └── 📁 fine-tuned_model_evaluation/  # 微调模型表现评估结果
+│       ├── prediction_result.json       # 微调模型预测
+│       ├── evaluation_results.json      # 详细评估结果
+│       ├── evaluation_analysis.json     # 统计分析
+│       └── evaluation_report.txt        # 可读报告
+│
+├── 📁 assets/                           # 📸 项目资源目录
+│   ├── wandb.png                        # 训练Loss曲线
+│   └── answer_example.png               # 模型回答示例
+│
+├── README.md                            # 项目说明文档
+└── 技术报告.md                          # 本技术报告
 ```
 
 ## 🚀 快速开始
